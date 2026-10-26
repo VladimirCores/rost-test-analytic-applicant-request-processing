@@ -1,0 +1,66 @@
+{
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Web Modeler",
+    "version": "f127538"
+  },
+  "schemaVersion": 19,
+  "id": "Form_Select_Executor",
+  "components": [
+    {
+      "text": "# Выберите исполнителя",
+      "type": "text",
+      "layout": {
+        "row": "Row_1mw0hft",
+        "columns": null
+      },
+      "id": "Field_1mle5of"
+    },
+    {
+      "label": "Менеджер (Руководитель)",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_0ebyi10",
+      "key": "form_managerId",
+      "disabled": false,
+      "readonly": "=is defined(managerId)",
+      "description": "managerId",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Исполнитель",
+      "values": [
+        {
+          "label": "Иванов И.И.",
+          "value": "ivanov"
+        },
+        {
+          "label": "Петров П.П.",
+          "value": "petrov"
+        },
+        {
+          "label": "Сидоров С.С.",
+          "value": "sidorov"
+        }
+      ],
+      "type": "select",
+      "layout": {
+        "row": "Row_0v90sqb",
+        "columns": null
+      },
+      "id": "Field_0dc4k5l",
+      "key": "form_executorId",
+      "validate": {
+        "required": true
+      },
+      "description": "executorId"
+    }
+  ],
+  "type": "default"
+}

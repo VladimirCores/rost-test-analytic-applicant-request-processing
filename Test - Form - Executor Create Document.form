@@ -1,0 +1,58 @@
+{
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Web Modeler",
+    "version": "f127538"
+  },
+  "schemaVersion": 19,
+  "id": "Form_Executor_Create_Document",
+  "components": [
+    {
+      "text": "# Сформировать документ по заявлению",
+      "type": "text",
+      "layout": {
+        "row": "Row_1mw0hft",
+        "columns": null
+      },
+      "id": "Field_1mle5of"
+    },
+    {
+      "label": "Менеджер (Руководитель)",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_0ebyi10",
+      "key": "form_managerId",
+      "disabled": false,
+      "readonly": "=is defined(managerId)",
+      "description": "managerId"
+    },
+    {
+      "label": "Исполнитель",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_01cj9m4",
+      "key": "form_executorId",
+      "description": "executorId",
+      "readonly": true
+    },
+    {
+      "label": "Решение",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_03mvj6g",
+        "columns": null
+      },
+      "id": "Field_1p78kol",
+      "key": "form_documentText",
+      "defaultValue": "Проблем не вижу"
+    }
+  ],
+  "type": "default"
+}

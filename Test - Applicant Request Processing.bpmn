@@ -1,0 +1,792 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Definitions_Application" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Web Modeler" exporterVersion="f127538" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.10.0">
+  <bpmn:collaboration id="Collaboration_1" name="Test - ZA - Working">
+    <bpmn:participant id="Participant_Organization" name="Организация. Обработка заявления" processRef="Process_xebke2e" />
+    <bpmn:participant id="Participant_Applicant" name="Заявитель" processRef="Process_Applicant">
+      <bpmn:documentation>Подача электронного заявления. Заявитель подаёт заявление одним из способов: 
+- лично (OFFICE) на приёме (при этом обязательно указывается адрес электронной почты — без него приём не завершается) 
+- либо через электронный портал (ONLINE). 
+
+Когда заявление подано, процесс (пул) завершается и управление передаётся в основной процесс руководителю для назначения исполнителя.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_0aegb3e" name="Дополнения" processRef="Process_12skscq" />
+    <bpmn:messageFlow id="Flow_1wzykpc" sourceRef="Participant_Applicant" targetRef="Participant_Organization" messageRef="Message_ApplicationSubmitted" />
+  </bpmn:collaboration>
+  <bpmn:message id="Message_ApplicantResponse" name="messageApplicantMissingDocument">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=appId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmn:message id="Message_ApplicationSubmitted" name="messageApplicationSubmitted">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=applicationId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmn:process id="Process_xebke2e" name="Обработка электронного заявления" isExecutable="true">
+    <bpmn:documentation>Процесс обработки электронного заявления. Подача заявления выделена в отдельный под-процесс «Подача заявления» (личный приём с обязательным указанием адреса электронной почты либо электронный портал). Далее Руководитель назначает исполнителя, исполнитель обрабатывает заявление в отдельном под-процессе «Исполнитель берёт в работу», Исполнитель может отклонить заявление, Руководитель подписывает результат, и заявление направляется Заявителю.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Executor" name="Исполнитель">
+        <bpmn:flowNodeRef>SubProcess_ExecutorWork</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Rejection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Executor_Acquaint</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Executor_Decision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_CheckApplication_Rejection</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Руководитель">
+        <bpmn:flowNodeRef>StartEvent_ApplicationReceived</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Manager_SigningDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Sent</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Manager_AssignExecutor</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Manager_Sign</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Manager_SendToApplicant</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:sequenceFlow id="Flow_Executor_TakeToWork" name="Взять в работу" sourceRef="Gateway_Executor_Decision" targetRef="SubProcess_ExecutorWork" />
+    <bpmn:sequenceFlow id="Flow_Manager_ReturnForRework" name="Вернуть на доработку" sourceRef="Gateway_Manager_SigningDecision" targetRef="SubProcess_ExecutorWork">
+      <bpmn:documentation>Метрика доработок рассчитывается как documentVersion − 1. 
+
+Edge-case “отказ исполнителя после возврата на доработку” в метрике не отражается — заявление всё равно завершается как REJECTED, и переделка документа не имеет смысла для аналитики.</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ExecutorWork_Completed" sourceRef="SubProcess_ExecutorWork" targetRef="Gateway_CheckApplication_Rejection" />
+    <bpmn:sequenceFlow id="Flow_1hae4pl" name="Заявление отклонено" sourceRef="Gateway_CheckApplication_Rejection" targetRef="EndEvent_Rejection" />
+    <bpmn:sequenceFlow id="Flow_23" sourceRef="Task_Manager_Sign" targetRef="Gateway_Manager_SigningDecision" />
+    <bpmn:sequenceFlow id="Flow_Manager_Approve" name="Согласовано" sourceRef="Gateway_Manager_SigningDecision" targetRef="Task_Manager_SendToApplicant">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isApplicationApproved</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_26" sourceRef="Task_Manager_SendToApplicant" targetRef="EndEvent_Sent" />
+    <bpmn:sequenceFlow id="Flow_12yfqz0" sourceRef="StartEvent_ApplicationReceived" targetRef="Task_Manager_AssignExecutor" />
+    <bpmn:startEvent id="StartEvent_ApplicationReceived" name="Поступило заявление">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=if is defined(applicationId) then applicationId else (now() - date and time(&#34;1970-01-01T00:00Z&#34;)) / duration(&#34;PT1S&#34;) * 1000" target="appId" />
+          <zeebe:output source="=if is defined(documentVersion) then documentVersion else 0" target="documentVersion" />
+          <zeebe:output source="=assert(managerId, managerId != null)" target="managerId" />
+          <zeebe:output source="=assert(applicantEmail, applicantEmail != null)" target="applicantEmail" />
+          <zeebe:output source="=null" target="executorId" />
+          <zeebe:output source="=false" target="isExecutorRejected" />
+          <zeebe:output source="=false" target="isApplicationRejected" />
+          <zeebe:output source="=&#34;RECEIVED&#34;" target="applicationStatus" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_12yfqz0</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDef_Start" messageRef="Message_ApplicationSubmitted" />
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_ExecutorWork" name="Исполнитель обрабатывает заявление">
+      <bpmn:documentation>При обработке заявления Исполнителем, возможные варианты: 
+1. отказать в рассмотрении заявления:
+- документ не готовится, процесс завершается; 
+2. предоставления недостающих документов (вернуть заявление Заявителю), ожидание ответа 3 дня, иначе отказ и процесс завершается;
+3. рассмотреть заявление - формируется документ;</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:input source="=applicantEmail" target="email" />
+          <zeebe:input source="=null" target="rejectionReason" />
+          <zeebe:input source="=null" target="applicantDocuments" />
+          <zeebe:input source="=null" target="document" />
+          <zeebe:input source="=false" target="isDocumentReady" />
+          <zeebe:input source="=&#34;IN_PROGRESS&#34;" target="applicationStatus" />
+          <zeebe:output source="=if is defined(isApplicationRejected) then isApplicationRejected else false" target="isApplicationRejected" />
+          <zeebe:output source="=if is defined(isDocumentReady) then isDocumentReady else false" target="isDocumentReady" />
+          <zeebe:output source="=if is defined(document) then document else null" target="document" />
+          <zeebe:output source="=applicationStatus" target="applicationStatus" />
+          <zeebe:output source="=rejectionReason" target="rejectionReason" />
+          <zeebe:output source="=applicantDocuments" target="applicantDocuments" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Executor_TakeToWork</bpmn:incoming>
+      <bpmn:incoming>Flow_Manager_ReturnForRework</bpmn:incoming>
+      <bpmn:outgoing>Flow_ExecutorWork_Completed</bpmn:outgoing>
+      <bpmn:startEvent id="Event_Executor_Start" name="Взять в работу">
+        <bpmn:extensionElements>
+          <zeebe:ioMapping>
+            <zeebe:output source="=null" target="documentReadyAt" />
+            <zeebe:output source="=null" target="signedAt" />
+            <zeebe:output source="=false" target="hasMissingDocuments" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:outgoing>Flow_149i79u</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:exclusiveGateway id="Gateway_Executor_ProcessingResult" name="Результат обработки" default="Flow_Executor_ConfirmApplication">
+        <bpmn:incoming>Flow_1uyhwuk</bpmn:incoming>
+        <bpmn:outgoing>Flow_0qnm105</bpmn:outgoing>
+        <bpmn:outgoing>Flow_1v24gwl</bpmn:outgoing>
+        <bpmn:outgoing>Flow_Executor_ConfirmApplication</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sendTask id="Task_Executor_RequestDocuments" name="Запросить недостающие документы у Заявителя">
+        <bpmn:documentation>Заявление возвращается Заявителю для предоставления недостающих документов. Ожидание ответа — 3 дня: при получении ответа обработка заявления продолжается, при отсутствии ответа — отказ, документ не готовится, процесс завершается.</bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:taskDefinition type="requestApplicantMissingDocuments" retries="3" />
+          <zeebe:ioMapping>
+            <zeebe:input source="=applicantEmail" target="email" />
+            <zeebe:input source="=appId" target="applicationId" />
+            <zeebe:output source="=&#34;WAITING_FOR_DOCUMENTS&#34;" target="applicationStatus" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_0qnm105</bpmn:incoming>
+        <bpmn:outgoing>Flow_109x8bs</bpmn:outgoing>
+      </bpmn:sendTask>
+      <bpmn:userTask id="Task_Executor_PrepareDocument" name="Сформировать документ по заявлению">
+        <bpmn:documentation>Заявление рассмотрено. Формируется документ для дальнейшего согласования с Руководителем. 
+Документ формируется по шаблону JSON-XXX из справочника CON-XXX; documentVersion — номер версии документа в рамках одного заявления (инкрементируется при каждой доработке). 
+TODO: Дать ссылку на шаблон и справочник</bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:userTask />
+          <zeebe:assignmentDefinition assignee="=executorId" />
+          <zeebe:formDefinition formId="Form_Executor_Create_Document" />
+          <zeebe:ioMapping>
+            <zeebe:input source="=managerId" target="form_managerId" />
+            <zeebe:input source="=executorId" target="form_executorId" />
+            <zeebe:input source="=null" target="form_documentText" />
+            <zeebe:input source="=documentVersion + 1" target="form_documentVersion" />
+            <zeebe:output source="=true" target="isDocumentReady" />
+            <zeebe:output source="=now()" target="documentReadyAt" />
+            <zeebe:output source="={&#10;  &#34;version&#34;: form_documentVersion,&#10;  &#34;appId&#34;: appId,&#10;  &#34;text&#34;: if is defined(form_documentText) then form_documentText else &#34;&#34;&#10;}" target="document" />
+            <zeebe:output source="=form_documentVersion" target="documentVersion" />
+            <zeebe:output source="=&#34;DOCUMENT_READY&#34;" target="applicationStatus" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_Executor_ConfirmApplication</bpmn:incoming>
+        <bpmn:outgoing>Flow_04oslu8</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:sequenceFlow id="Flow_0qnm105" name="Вернуть Заявителю" sourceRef="Gateway_Executor_ProcessingResult" targetRef="Task_Executor_RequestDocuments">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=is defined(hasMissingDocuments) and hasMissingDocuments and not(isApplicationRejected)</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_04oslu8" sourceRef="Task_Executor_PrepareDocument" targetRef="Event_Executor_DocumentReady" />
+      <bpmn:eventBasedGateway id="Gateway_Executor_WaitResponse" name="Ожидание ответа Заявителя">
+        <bpmn:incoming>Flow_109x8bs</bpmn:incoming>
+        <bpmn:outgoing>Flow_0by7sk4</bpmn:outgoing>
+        <bpmn:outgoing>Flow_16gbalp</bpmn:outgoing>
+      </bpmn:eventBasedGateway>
+      <bpmn:sequenceFlow id="Flow_109x8bs" sourceRef="Task_Executor_RequestDocuments" targetRef="Gateway_Executor_WaitResponse" />
+      <bpmn:intermediateCatchEvent id="CatchEvent_Executor_Timer" name="Истекли 3 дня без ответа">
+        <bpmn:documentation>Срок ожидания ответа Заявителя — 3 дня (таймер P3D).</bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:ioMapping>
+            <zeebe:output source="=&#34;MISSING_DOCUMENTS_TIMEOUT&#34;" target="rejectionReason" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_0by7sk4</bpmn:incoming>
+        <bpmn:outgoing>Flow_0amnnb4</bpmn:outgoing>
+        <bpmn:timerEventDefinition id="TimerEventDefinition_1ul79fa">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3D</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:intermediateCatchEvent>
+      <bpmn:sequenceFlow id="Flow_0by7sk4" sourceRef="Gateway_Executor_WaitResponse" targetRef="CatchEvent_Executor_Timer" />
+      <bpmn:sequenceFlow id="Flow_0amnnb4" sourceRef="CatchEvent_Executor_Timer" targetRef="Event_Executor_Rejection" />
+      <bpmn:sequenceFlow id="Flow_1v24gwl" name="Отказ в рассмотрении" sourceRef="Gateway_Executor_ProcessingResult" targetRef="Event_Executor_Rejection">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=is defined(isApplicationRejected) and isApplicationRejected</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:intermediateCatchEvent id="CatchEvent_Executor_Message" name="Получены недостающие документы">
+        <bpmn:documentation>От Заявителя получен ответ с недостающими документами — обработка заявления продолжается.</bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:ioMapping>
+            <zeebe:output source="=false" target="hasMissingDocuments" />
+            <zeebe:output source="=if is defined(missingDocuments) then missingDocuments else null" target="applicantDocuments" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_16gbalp</bpmn:incoming>
+        <bpmn:outgoing>Flow_1mvkb0d</bpmn:outgoing>
+        <bpmn:messageEventDefinition id="MessageEventDefinition_1u92d3p" messageRef="Message_ApplicantResponse" />
+      </bpmn:intermediateCatchEvent>
+      <bpmn:sequenceFlow id="Flow_16gbalp" sourceRef="Gateway_Executor_WaitResponse" targetRef="CatchEvent_Executor_Message" />
+      <bpmn:endEvent id="Event_Executor_DocumentReady" name="Документ сформирован">
+        <bpmn:extensionElements>
+          <zeebe:ioMapping>
+            <zeebe:output source="=false" target="isApplicationRejected" />
+            <zeebe:output source="=null" target="rejectionReason" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_04oslu8</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:userTask id="Task_Executor_Process" name="Обработать заявление">
+        <bpmn:documentation>Исполнитель обрабатывает заявление. Возможные результаты: отказать в рассмотрении (документ не готовится), вернуть заявление Заявителю для предоставления недостающих документов (документ не готовится), рассмотреть заявление (формируется документ для согласования с Руководителем).</bpmn:documentation>
+        <bpmn:extensionElements>
+          <zeebe:userTask />
+          <zeebe:assignmentDefinition assignee="=executorId" />
+          <zeebe:formDefinition formId="Form_Executor_Process" />
+          <zeebe:ioMapping>
+            <zeebe:input source="=managerId" target="form_managerId" />
+            <zeebe:input source="=executorId" target="form_executorId" />
+            <zeebe:input source="=false" target="form_isApplicationRejected" />
+            <zeebe:input source="=false" target="form_hasMissingDocuments" />
+            <zeebe:input source="=applicantDocuments" target="form_applicantDocuments" />
+            <zeebe:input source="=null" target="form_rejectionReason" />
+            <zeebe:output source="=if is defined(form_isApplicationRejected) then form_isApplicationRejected else false" target="isApplicationRejected" />
+            <zeebe:output source="=if is defined(form_hasMissingDocuments) then form_hasMissingDocuments else false" target="hasMissingDocuments" />
+            <zeebe:output source="=if is defined(form_rejectionReason) and form_rejectionReason != null and form_rejectionReason != &#34;&#34; then form_rejectionReason else rejectionReason" target="rejectionReason" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_1mvkb0d</bpmn:incoming>
+        <bpmn:incoming>Flow_149i79u</bpmn:incoming>
+        <bpmn:outgoing>Flow_1uyhwuk</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:sequenceFlow id="Flow_1uyhwuk" sourceRef="Task_Executor_Process" targetRef="Gateway_Executor_ProcessingResult" />
+      <bpmn:sequenceFlow id="Flow_1mvkb0d" name="Повторно обработать заявление" sourceRef="CatchEvent_Executor_Message" targetRef="Task_Executor_Process" />
+      <bpmn:sequenceFlow id="Flow_149i79u" sourceRef="Event_Executor_Start" targetRef="Task_Executor_Process" />
+      <bpmn:sequenceFlow id="Flow_Executor_ConfirmApplication" name="Рассмотрел заявление" sourceRef="Gateway_Executor_ProcessingResult" targetRef="Task_Executor_PrepareDocument" />
+      <bpmn:endEvent id="Event_Executor_Rejection" name="Отказ">
+        <bpmn:extensionElements>
+          <zeebe:ioMapping>
+            <zeebe:output source="=true" target="isApplicationRejected" />
+            <zeebe:output source="=&#34;REJECTED&#34;" target="applicationStatus" />
+            <zeebe:output source="=if is defined(rejectionReason) then rejectionReason else &#34;EXECUTOR_REJECTED&#34;" target="rejectionReason" />
+          </zeebe:ioMapping>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_0amnnb4</bpmn:incoming>
+        <bpmn:incoming>Flow_1v24gwl</bpmn:incoming>
+      </bpmn:endEvent>
+    </bpmn:subProcess>
+    <bpmn:exclusiveGateway id="Gateway_Manager_SigningDecision" name="Решение Руководителя" default="Flow_Manager_ReturnForRework">
+      <bpmn:incoming>Flow_23</bpmn:incoming>
+      <bpmn:outgoing>Flow_Manager_Approve</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Manager_ReturnForRework</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_Sent" name="Заявление отправлено Заявителю">
+      <bpmn:documentation>Подписанное заявление отправлено Заявителю. Процесс завершён.</bpmn:documentation>
+      <bpmn:incoming>Flow_26</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Rejection" name="Отказ в рассмотрении">
+      <bpmn:documentation>В рассмотрении заявления отказано. Документ не готовится, процесс завершается.</bpmn:documentation>
+      <bpmn:incoming>Flow_1hae4pl</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_Manager_AssignExecutor" name="Назначить исполнителя">
+      <bpmn:documentation>Руководитель назначает сотрудника, который должен обработать заявление. При отказе Исполнителя заявление возвращается Руководителю, и он назначает другого исполнителя. Также здесь нужно ввести данные Руководителя если они не были переданы (назначены) в сообщении.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:assignmentDefinition assignee="=managerId" />
+        <zeebe:formDefinition formId="Form_Select_Executor" />
+        <zeebe:userTask />
+        <zeebe:ioMapping>
+          <zeebe:input source="=managerId" target="form_managerId" />
+          <zeebe:input source="=null" target="form_executorId" />
+          <zeebe:output source="=assert(form_executorId, form_executorId != null)" target="executorId" />
+          <zeebe:output source="=&#34;ASSIGNED&#34;" target="applicationStatus" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Executor_Rejection</bpmn:incoming>
+      <bpmn:incoming>Flow_12yfqz0</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Executor_Acquaint" name="Ознакомиться с заявлением и принять решение">
+      <bpmn:documentation>Назначенный Исполнитель знакомится с заявлением и принимает решение: взять заявление в работу или отказаться.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:assignmentDefinition assignee="=executorId" />
+        <zeebe:formDefinition formId="Form_Executor_Confirmation" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=managerId" target="form_managerId" />
+          <zeebe:input source="=executorId" target="form_executorId" />
+          <zeebe:input source="=false" target="form_isExecutorRejected" />
+          <zeebe:output source="=if is defined(form_isExecutorRejected) then form_isExecutorRejected else false" target="isExecutorRejected" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_Executor_Decide</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Executor_Decision" name="Решение Исполнителя" default="Flow_Executor_TakeToWork">
+      <bpmn:incoming>Flow_Executor_Decide</bpmn:incoming>
+      <bpmn:outgoing>Flow_Executor_Rejection</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Executor_TakeToWork</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_Executor_Rejection" name="Отказаться" sourceRef="Gateway_Executor_Decision" targetRef="Task_Manager_AssignExecutor">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isExecutorRejected</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_Manager_AssignExecutor" targetRef="Task_Executor_Acquaint" />
+    <bpmn:sequenceFlow id="Flow_Executor_Decide" sourceRef="Task_Executor_Acquaint" targetRef="Gateway_Executor_Decision" />
+    <bpmn:userTask id="Task_Manager_Sign" name="Подписать заявление">
+      <bpmn:documentation>Руководитель подписывает рассмотренное заявление либо возвращает его Исполнителю для доработки.
+
+applicationStatus = "REWORK" является транзиентным и перезаписывается на IN_PROGRESS при входе в подпроцесс. Для аналитики доработок используются documentVersion, signedAt, documentReadyAt — сам статус REWORK снаружи не наблюдается.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formId="Form_Manager_Sign" />
+        <zeebe:assignmentDefinition assignee="=managerId" />
+        <zeebe:userTask />
+        <zeebe:ioMapping>
+          <zeebe:input source="=managerId" target="form_managerId" />
+          <zeebe:input source="=executorId" target="form_executorId" />
+          <zeebe:input source="=document" target="form_document" />
+          <zeebe:input source="=false" target="form_isApplicationApproved" />
+          <zeebe:output source="=now()" target="signedAt" />
+          <zeebe:output source="=form_isApplicationApproved" target="isApplicationApproved" />
+          <zeebe:output source="=if form_isApplicationApproved then &#34;APPROVED&#34; else &#34;REWORK&#34;" target="applicationStatus" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_14o03pm</bpmn:incoming>
+      <bpmn:outgoing>Flow_23</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_CheckApplication_Rejection" name="Заявление отклонено?" default="Flow_1hae4pl">
+      <bpmn:documentation>Default flow ведёт на отказ — fail-safe на случай, если isDocumentReady не определён.</bpmn:documentation>
+      <bpmn:incoming>Flow_ExecutorWork_Completed</bpmn:incoming>
+      <bpmn:outgoing>Flow_1hae4pl</bpmn:outgoing>
+      <bpmn:outgoing>Flow_14o03pm</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_14o03pm" name="Документ по заявлению сформирован" sourceRef="Gateway_CheckApplication_Rejection" targetRef="Task_Manager_Sign">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isDocumentReady and not(isApplicationRejected)</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sendTask id="Task_Manager_SendToApplicant" name="Отправить заявление Заявителю">
+      <bpmn:documentation>Подписанное заявление направляется Заявителю по адресу электронной почты, указанному при подаче заявления.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sendDocumentToApplicant" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=applicantEmail" target="email" />
+          <zeebe:input source="=document" target="documentToSend" />
+          <zeebe:input source="=appId" target="applicationId" />
+          <zeebe:output source="=now()" target="sentAt" />
+          <zeebe:output source="=&#34;SENT&#34;" target="applicationStatus" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Manager_Approve</bpmn:incoming>
+      <bpmn:outgoing>Flow_26</bpmn:outgoing>
+    </bpmn:sendTask>
+  </bpmn:process>
+  <bpmn:process id="Process_Applicant" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_0xqzfpn">
+      <bpmn:lane id="Lane_01ltklx" name="Подача заявления">
+        <bpmn:flowNodeRef>EndEvent_Applicant_Submitted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Applicant_EmailCheck</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Applicant_Submission</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>StartEvent_Applicant</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Applicant_Portal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Applicant_PersonalReception</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:endEvent id="EndEvent_Applicant_Submitted" name="Заявление подано">
+      <bpmn:documentation>Заявление подано в организацию. Процесс подачи завершён, управление возвращается в основной процесс.</bpmn:documentation>
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:incoming>Flow_EmailCheck_Yes</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gateway_Applicant_EmailCheck" name="Адрес эл. почты указан?" default="Flow_EmailCheck_Yes">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_EmailCheck_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_EmailCheck_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_Applicant_Submission" name="Способ подачи заявления" default="Flow_06">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:startEvent id="StartEvent_Applicant" name="Заявитель начал подачу">
+      <bpmn:documentation>submissionChannel — входная переменная процесса заявителя, она выбирается пользователем до начала процесса и может иметь значения: 
+- ONLINE (default)
+- OFFICE</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=assert(submissionChannel, submissionChannel != null)" target="submissionChannel" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_06" name="Электронный портал" sourceRef="Gateway_Applicant_Submission" targetRef="Task_Applicant_Portal" />
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_Applicant_Portal" targetRef="EndEvent_Applicant_Submitted" />
+    <bpmn:sequenceFlow id="Flow_EmailCheck_Yes" name="Да, указан" sourceRef="Gateway_Applicant_EmailCheck" targetRef="EndEvent_Applicant_Submitted" />
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_Applicant_PersonalReception" targetRef="Gateway_Applicant_EmailCheck" />
+    <bpmn:sequenceFlow id="Flow_EmailCheck_No" name="Нет, указать эл. почту" sourceRef="Gateway_Applicant_EmailCheck" targetRef="Task_Applicant_PersonalReception">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=not(is defined(profile.email)) or profile.email = ""</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_02" name="Личный приём" sourceRef="Gateway_Applicant_Submission" targetRef="Task_Applicant_PersonalReception">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=submissionChannel = "OFFICE"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_Applicant" targetRef="Gateway_Applicant_Submission" />
+    <bpmn:task id="Task_Applicant_Portal" name="Подать заявление через web портал">
+      <bpmn:documentation>Заявление поступает через электронный портал организации; адрес электронной почты указывается в форме портала.</bpmn:documentation>
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_Applicant_PersonalReception" name="Подать заявление на личном приёме">
+      <bpmn:documentation>При личном приёме Заявитель обязан указать адрес электронной почты — он используется для последующей отправки результата рассмотрения заявления.</bpmn:documentation>
+      <bpmn:incoming>Flow_EmailCheck_No</bpmn:incoming>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmn:process id="Process_12skscq" isExecutable="false">
+    <bpmn:task id="Activity_12ncerz" name="Таймауты на пользовательские задачи">
+      <bpmn:documentation>Нет таймаутов на пользовательские задачи
+У заявителя есть 3 дня на предоставление документов (модель это отражает ✅), но у руководителя и исполнителя нет дедлайнов:
+
+Руководитель получил заявку на назначение — сколько он может думать?
+
+Исполнитель получил заявку — сколько времени у него на обработку?
+
+Руководитель получил документ на подписание — какой SLA?
+
+В реальном внедрении это приводит к «зависшим» задачам. Senior BA обязан это отразить, даже если в требованиях не написано — это и есть его добавленная стоимость.
+
+Рекомендация: добавьте non-interrupting boundary timer на каждую user task (например, P2D для напоминания), или в документации явно зафиксируйте: «Таймауты на задачи руководителя/исполнителя не определены в требованиях; требуют согласования с заказчиком». Второй вариант тоже ценится — показывает, что вы видите пробел.</bpmn:documentation>
+    </bpmn:task>
+    <bpmn:task id="Activity_073enet" name="Дополнения заявления и возврата руководителем">
+      <bpmn:documentation>hasMissingDocuments — только триггер от исполнителя
+Сейчас возврат заявителю возможен только если исполнитель в форме Form_Executor_Process явно поставил hasMissingDocuments = true. Что если:
+
+Руководитель видит, что документ неполный → сейчас он может только вернуть на доработку исполнителю (Flow_Manager_ReturnForRework), но не заявителю
+
+Заявитель сам хочет дополнить заявку → такого пути нет вообще
+
+Это gap в требованиях: «В текущей версии возврат заявителю инициируется только исполнителем; сценарии самостоятельного дополнения заявки и возврата руководителем — out of scope».</bpmn:documentation>
+    </bpmn:task>
+    <bpmn:task id="Activity_0gqpoz9" name="Обработка технических сбоев отправки">
+      <bpmn:documentation>Нет обработки технических сбоев отправки
+
+retries="3" — хорошо (лучше, чем 0). Но что дальше? Если 3 ретрая провалились — инцидент в Operate, процесс стоит. Дальше: кто и как его разбирает? SLA на разрешение инцидента? Уведомление администратора? Альтернативный канал отправки (SMS, звонок)?
+
+Нужно описать это в operational runbook: «При исчерпании retries — инцидент в Operate; ответственный: дежурный администратор; SLA: 4 часа; эскалация — email в техподдержку». Сейчас этого нет.</bpmn:documentation>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_Organization_di" bpmnElement="Participant_Organization" isHorizontal="true">
+        <dc:Bounds x="540" y="316" width="1160" height="384" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="570" y="316" width="1130" height="174" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Executor_di" bpmnElement="Lane_Executor" isHorizontal="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="570" y="490" width="1130" height="210" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_18pmdli_di" bpmnElement="StartEvent_ApplicationReceived" bioc:stroke="#205022" bioc:fill="#c8e6c9" color:background-color="#c8e6c9" color:border-color="#205022">
+        <dc:Bounds x="622" y="372" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="613" y="415" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0iosslv_di" bpmnElement="SubProcess_ExecutorWork" isExpanded="false">
+        <dc:Bounds x="1050" y="550" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_SigningDecision_di" bpmnElement="Gateway_Manager_SigningDecision" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="1315" y="375" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1304" y="342" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Sent_di" bpmnElement="EndEvent_Sent">
+        <dc:Bounds x="1622" y="382" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1609" y="336" width="60" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_09m8ke4" bpmnElement="EndEvent_Rejection">
+        <dc:Bounds x="1622" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1603" y="539" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AssignExecutor_di" bpmnElement="Task_Manager_AssignExecutor">
+        <dc:Bounds x="710" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Acquaint_di" bpmnElement="Task_Executor_Acquaint">
+        <dc:Bounds x="710" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ExecutorDecision_di" bpmnElement="Gateway_Executor_Decision" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="875" y="565" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="866" y="622" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Sign_di" bpmnElement="Task_Manager_Sign">
+        <dc:Bounds x="1170" y="360" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1tkjg6b_di" bpmnElement="Gateway_CheckApplication_Rejection" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="1195" y="565" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1191" y="622" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendToApplicant_di" bpmnElement="Task_Manager_SendToApplicant">
+        <dc:Bounds x="1470" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_Executor_TakeToWork">
+        <di:waypoint x="925" y="590" />
+        <di:waypoint x="1050" y="590" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="949" y="596" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Manager_ReturnForRework_di" bpmnElement="Flow_Manager_ReturnForRework">
+        <di:waypoint x="1340" y="425" />
+        <di:waypoint x="1340" y="480" />
+        <di:waypoint x="1100" y="480" />
+        <di:waypoint x="1100" y="550" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1345" y="445" width="113" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ExecutorWork_Completed_di" bpmnElement="Flow_ExecutorWork_Completed">
+        <di:waypoint x="1150" y="590" />
+        <di:waypoint x="1195" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1hae4pl_di" bpmnElement="Flow_1hae4pl">
+        <di:waypoint x="1245" y="590" />
+        <di:waypoint x="1622" y="590" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1377" y="572" width="126" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23">
+        <di:waypoint x="1270" y="400" />
+        <di:waypoint x="1315" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Manager_Approve_di" bpmnElement="Flow_Manager_Approve">
+        <di:waypoint x="1365" y="400" />
+        <di:waypoint x="1470" y="400" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1376" y="382" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_26_di" bpmnElement="Flow_26">
+        <di:waypoint x="1570" y="400" />
+        <di:waypoint x="1622" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12yfqz0_di" bpmnElement="Flow_12yfqz0">
+        <di:waypoint x="658" y="390" />
+        <di:waypoint x="710" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_Executor_Rejection">
+        <di:waypoint x="900" y="565" />
+        <di:waypoint x="900" y="390" />
+        <di:waypoint x="810" y="390" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="907" y="546" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="760" y="430" />
+        <di:waypoint x="760" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_Executor_Decide">
+        <di:waypoint x="810" y="590" />
+        <di:waypoint x="875" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14o03pm_di" bpmnElement="Flow_14o03pm">
+        <di:waypoint x="1220" y="565" />
+        <di:waypoint x="1220" y="440" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1227" y="510" width="71" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_18dnx07_di" bpmnElement="Participant_Applicant" isHorizontal="true">
+        <dc:Bounds x="540" y="-80" width="730" height="312" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_01ltklx_di" bpmnElement="Lane_01ltklx" isHorizontal="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="570" y="-80" width="700" height="312" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0qtyp6t" bpmnElement="EndEvent_Applicant_Submitted">
+        <dc:Bounds x="1143" y="66" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1190" y="70" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_07cb3ks" bpmnElement="Gateway_Applicant_EmailCheck" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="1024" y="-9" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1007" y="49" width="83" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0kogxrr" bpmnElement="Gateway_Applicant_Submission" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="685" y="59" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="740" y="68" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0zki15v" bpmnElement="StartEvent_Applicant">
+        <dc:Bounds x="621" y="66" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="610" y="20" width="60" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1g3feao_di" bpmnElement="Task_Applicant_Portal">
+        <dc:Bounds x="910" y="112" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1b2qvnw_di" bpmnElement="Task_Applicant_PersonalReception">
+        <dc:Bounds x="855" y="-24" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_146z722" bpmnElement="Flow_06">
+        <di:waypoint x="710" y="109" />
+        <di:waypoint x="710" y="152" />
+        <di:waypoint x="910" y="152" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="719" y="133" width="107" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_1knfms9" bpmnElement="Flow_07">
+        <di:waypoint x="1010" y="152" />
+        <di:waypoint x="1161" y="152" />
+        <di:waypoint x="1161" y="102" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_0427n2j" bpmnElement="Flow_EmailCheck_Yes">
+        <di:waypoint x="1074" y="16" />
+        <di:waypoint x="1161" y="16" />
+        <di:waypoint x="1161" y="66" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1094" y="-3" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_0v5phjb" bpmnElement="Flow_03">
+        <di:waypoint x="955" y="16" />
+        <di:waypoint x="1024" y="16" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_1u6xy93" bpmnElement="Flow_EmailCheck_No">
+        <di:waypoint x="1049" y="-9" />
+        <di:waypoint x="1049" y="-54" />
+        <di:waypoint x="905" y="-54" />
+        <di:waypoint x="905" y="-24" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="923" y="-49" width="112" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_0k5z5bd" bpmnElement="Flow_02">
+        <di:waypoint x="710" y="59" />
+        <di:waypoint x="710" y="16" />
+        <di:waypoint x="855" y="16" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="719" y="23" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_1tlm0kr" bpmnElement="Flow_01">
+        <di:waypoint x="657" y="84" />
+        <di:waypoint x="685" y="84" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_0aegb3e_di" bpmnElement="Participant_0aegb3e" isHorizontal="true">
+        <dc:Bounds x="540" y="990" width="1160" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12ncerz_di" bpmnElement="Activity_12ncerz">
+        <dc:Bounds x="630" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_073enet_di" bpmnElement="Activity_073enet">
+        <dc:Bounds x="820" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0gqpoz9_di" bpmnElement="Activity_0gqpoz9">
+        <dc:Bounds x="1010" y="1070" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1wzykpc_di" bpmnElement="Flow_1wzykpc">
+        <di:waypoint x="670" y="232" />
+        <di:waypoint x="670" y="316" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_136ubiv">
+    <bpmndi:BPMNPlane id="BPMNPlane_1hnlc95" bpmnElement="SubProcess_ExecutorWork">
+      <bpmndi:BPMNShape id="Event_16493t8_di" bpmnElement="Event_Executor_Start">
+        <dc:Bounds x="200" y="290" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="180" y="333" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1imyy4r_di" bpmnElement="Gateway_Executor_ProcessingResult" isMarkerVisible="true" bioc:stroke="#6b3c00" bioc:fill="#ffe0b2" color:background-color="#ffe0b2" color:border-color="#6b3c00">
+        <dc:Bounds x="471" y="283" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="419" y="321" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1n1zvoj" bpmnElement="Task_Executor_RequestDocuments">
+        <dc:Bounds x="588" y="345" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_03482t1" bpmnElement="Task_Executor_PrepareDocument">
+        <dc:Bounds x="678" y="184" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0rgdlqp" bpmnElement="Gateway_Executor_WaitResponse" bioc:stroke="#831311" bioc:fill="#ffcdd2" color:background-color="#ffcdd2" color:border-color="#831311">
+        <dc:Bounds x="731" y="360" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="711" y="330" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1gxe5ay" bpmnElement="CatchEvent_Executor_Timer">
+        <dc:Bounds x="842" y="367" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="833" y="335" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0pfxlmu" bpmnElement="CatchEvent_Executor_Message">
+        <dc:Bounds x="738" y="456" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="783" y="454" width="71" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_114gu3g_di" bpmnElement="Event_Executor_DocumentReady">
+        <dc:Bounds x="928" y="206" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="910" y="174" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1wyc8l1" bpmnElement="Task_Executor_Process">
+        <dc:Bounds x="288" y="268" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0a1gh9u_di" bpmnElement="Event_Executor_Rejection">
+        <dc:Bounds x="928" y="290" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="931" y="270" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0qnm105_di" bpmnElement="Flow_0qnm105">
+        <di:waypoint x="496" y="333" />
+        <di:waypoint x="496" y="385" />
+        <di:waypoint x="588" y="385" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="503" y="353" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04oslu8_di" bpmnElement="Flow_04oslu8">
+        <di:waypoint x="778" y="224" />
+        <di:waypoint x="928" y="224" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_109x8bs_di" bpmnElement="Flow_109x8bs">
+        <di:waypoint x="688" y="385" />
+        <di:waypoint x="731" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0by7sk4_di" bpmnElement="Flow_0by7sk4">
+        <di:waypoint x="781" y="385" />
+        <di:waypoint x="842" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0amnnb4_di" bpmnElement="Flow_0amnnb4">
+        <di:waypoint x="878" y="385" />
+        <di:waypoint x="946" y="385" />
+        <di:waypoint x="946" y="326" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1v24gwl_di" bpmnElement="Flow_1v24gwl">
+        <di:waypoint x="521" y="308" />
+        <di:waypoint x="928" y="308" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="522" y="289" width="114" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16gbalp_di" bpmnElement="Flow_16gbalp">
+        <di:waypoint x="756" y="410" />
+        <di:waypoint x="756" y="456" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1uyhwuk_di" bpmnElement="Flow_1uyhwuk">
+        <di:waypoint x="388" y="308" />
+        <di:waypoint x="471" y="308" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1mvkb0d_di" bpmnElement="Flow_1mvkb0d">
+        <di:waypoint x="738" y="474" />
+        <di:waypoint x="338" y="474" />
+        <di:waypoint x="338" y="348" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="419" y="481" width="168" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_149i79u_di" bpmnElement="Flow_149i79u">
+        <di:waypoint x="236" y="308" />
+        <di:waypoint x="288" y="308" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1gnf2jp_di" bpmnElement="Flow_Executor_ConfirmApplication">
+        <di:waypoint x="496" y="283" />
+        <di:waypoint x="496" y="224" />
+        <di:waypoint x="678" y="224" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="508" y="229" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,81 @@
+{
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Web Modeler",
+    "version": "f127538"
+  },
+  "schemaVersion": 19,
+  "id": "Form_Executor_Process",
+  "components": [
+    {
+      "text": "# Исполнитель - обработать заявление",
+      "type": "text",
+      "layout": {
+        "row": "Row_1mw0hft",
+        "columns": null
+      },
+      "id": "Field_1mle5of"
+    },
+    {
+      "label": "Менеджер (Руководитель)",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_0ebyi10",
+      "key": "form_managerId",
+      "disabled": false,
+      "readonly": "=is defined(managerId)",
+      "description": "managerId"
+    },
+    {
+      "label": "Исполнитель",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_1p78kol",
+      "key": "form_executorId",
+      "readonly": true,
+      "description": "executorId"
+    },
+    {
+      "label": "Отказ в рассмотрении",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_1w4ojxx",
+        "columns": null
+      },
+      "id": "Field_1ypj9yq",
+      "key": "form_isApplicationRejected",
+      "description": "isApplicationRejected"
+    },
+    {
+      "label": "Недостающие документы у Заявителя",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_076yayt",
+        "columns": null
+      },
+      "id": "Field_1at6ql4",
+      "key": "form_hasMissingDocuments",
+      "description": "hasMissingDocuments"
+    },
+    {
+      "content": "form_applicantDocuments",
+      "type": "html",
+      "layout": {
+        "row": "Row_00m8zjk",
+        "columns": null
+      },
+      "id": "Field_0rif7n0",
+      "conditional": {
+        "hide": "=form_applicantDocuments=null"
+      }
+    }
+  ],
+  "type": "default"
+}

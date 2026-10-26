@@ -1,0 +1,59 @@
+{
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Web Modeler",
+    "version": "f127538"
+  },
+  "schemaVersion": 19,
+  "id": "Form_Executor_Confirmation",
+  "components": [
+    {
+      "text": "# Испольнитель - согласие на работу",
+      "type": "text",
+      "layout": {
+        "row": "Row_1mw0hft",
+        "columns": null
+      },
+      "id": "Field_1mle5of"
+    },
+    {
+      "label": "Менеджер (Руководитель)",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_0ebyi10",
+      "key": "form_managerId",
+      "disabled": false,
+      "readonly": "=is defined(managerId)",
+      "description": "managerId"
+    },
+    {
+      "label": "Исполнитель",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_1p78kol",
+      "key": "form_executorId",
+      "readonly": true,
+      "description": "executorId"
+    },
+    {
+      "label": "Исполнитель несогласен",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_0m2ofoc",
+        "columns": null
+      },
+      "id": "Field_12ux21a",
+      "key": "form_isExecutorRejected",
+      "defaultValue": true,
+      "description": "isExecutorRejected"
+    }
+  ],
+  "type": "default"
+}

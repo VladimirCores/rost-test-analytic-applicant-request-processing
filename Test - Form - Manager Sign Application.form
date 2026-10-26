@@ -1,0 +1,67 @@
+{
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.10.0",
+  "exporter": {
+    "name": "Camunda Web Modeler",
+    "version": "f127538"
+  },
+  "schemaVersion": 19,
+  "id": "Form_Manager_Sign",
+  "components": [
+    {
+      "text": "# Менеджер - подписать заявление",
+      "type": "text",
+      "layout": {
+        "row": "Row_1mw0hft",
+        "columns": null
+      },
+      "id": "Field_1mle5of"
+    },
+    {
+      "label": "Менеджер (Руководитель)",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_0ebyi10",
+      "key": "form_managerId",
+      "disabled": false,
+      "readonly": "=is defined(managerId)",
+      "description": "managerId"
+    },
+    {
+      "label": "Исполнитель",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1m6liwd",
+        "columns": null
+      },
+      "id": "Field_1p78kol",
+      "key": "form_executorId",
+      "description": "executorId",
+      "readonly": true
+    },
+    {
+      "label": "Заявка согласована",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_1gmdp4g",
+        "columns": null
+      },
+      "id": "Field_0gt5au1",
+      "key": "form_isApplicationApproved",
+      "description": "isApplicationApproved"
+    },
+    {
+      "content": "form_document",
+      "type": "html",
+      "layout": {
+        "row": "Row_0gw1c0p",
+        "columns": null
+      },
+      "id": "Field_1ryq0y4"
+    }
+  ],
+  "type": "default"
+}

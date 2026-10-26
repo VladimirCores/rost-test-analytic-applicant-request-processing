@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="Definitions_ApplicationDecisions" name="Application Decision Tables" namespace="http://bpmn.io/schema/dmn">
+  <decision id="Decision_ExecutorProcessing" name="Решение Исполнителя по заявлению">
+    <decisionTable id="DecisionTable_ExecutorProcessing" hitPolicy="FIRST">
+      <input id="Input_1" label="Заявка отклонена?">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>isApplicationRejected</text>
+        </inputExpression>
+      </input>
+      <input id="Input_2" label="Есть недостающие документы?">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>hasMissingDocuments</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Действие исполнителя" name="executorAction" typeRef="string" />
+      <rule id="Rule_1">
+        <description>Отказ в рассмотрении — документ не готовится, процесс завершается</description>
+        <inputEntry id="InputEntry_1">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1">
+          <text>"REJECT"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <description>Вернуть заявителю — ожидание недостающих документов 3 дня</description>
+        <inputEntry id="InputEntry_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2">
+          <text>"RETURN"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <description>Default — рассмотреть заявление, формируется документ для подписания</description>
+        <inputEntry id="InputEntry_5">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3">
+          <text>"CONFIRM"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <decision id="Decision_DocumentSigning" name="Решение Руководителя по заявке после обработки документа">
+    <decisionTable id="DecisionTable_DocumentSigning" hitPolicy="FIRST">
+      <input id="Input_DocReady" label="Документ сформирован?">
+        <inputExpression id="InputExpression_DocReady" typeRef="boolean">
+          <text>isDocumentReady</text>
+        </inputExpression>
+      </input>
+      <input id="Input_Rejected" label="Заявка отклонена?">
+        <inputExpression id="InputExpression_Rejected" typeRef="boolean">
+          <text>isApplicationRejected</text>
+        </inputExpression>
+      </input>
+      <output id="Output_DocAction" label="Действие с документом" name="documentAction" typeRef="string" />
+      <rule id="Rule_Sign">
+        <description>Документ готов и заявка не отклонена — на подписание руководителю</description>
+        <inputEntry id="InputEntry_Sign1">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Sign2">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Sign">
+          <text>"SIGN"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Reject">
+        <description>Default — отказ в рассмотрении (fail-safe на случай неопределённых переменных)</description>
+        <inputEntry id="InputEntry_Reject1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Reject2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Reject">
+          <text>"REJECT"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_0nigxl5">
+      <dmndi:DMNShape id="DMNShape_1vr4ds2" dmnElementRef="Decision_ExecutorProcessing">
+        <dc:Bounds height="80" width="180" x="150" y="80" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_1gorci9" dmnElementRef="Decision_DocumentSigning">
+        <dc:Bounds height="80" width="180" x="390" y="80" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

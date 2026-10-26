@@ -27,7 +27,7 @@
       "id": "Field_0ebyi10",
       "key": "form_managerId",
       "disabled": false,
-      "readonly": "=is defined(managerId)",
+      "readonly": true,
       "description": "managerId"
     },
     {

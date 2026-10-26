@@ -27,7 +27,7 @@
       "id": "Field_0ebyi10",
       "key": "form_managerId",
       "disabled": false,
-      "readonly": "=is defined(managerId)",
+      "readonly": true,
       "description": "managerId"
     },
     {
@@ -65,13 +65,13 @@
       "description": "hasMissingDocuments"
     },
     {
-      "content": "form_applicantDocuments",
-      "type": "html",
+      "text": "=form_applicantDocuments",
+      "type": "text",
       "layout": {
-        "row": "Row_00m8zjk",
+        "row": "Row_16kuvmr",
         "columns": null
       },
-      "id": "Field_0rif7n0",
+      "id": "Field_05nqryv",
       "conditional": {
         "hide": "=form_applicantDocuments=null"
       }

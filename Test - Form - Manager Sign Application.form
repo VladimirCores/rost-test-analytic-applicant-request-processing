@@ -27,7 +27,7 @@
       "id": "Field_0ebyi10",
       "key": "form_managerId",
       "disabled": false,
-      "readonly": "=is defined(managerId)",
+      "readonly": true,
       "description": "managerId"
     },
     {
@@ -54,13 +54,16 @@
       "description": "isApplicationApproved"
     },
     {
-      "content": "form_document",
-      "type": "html",
+      "text": "=form_document",
+      "type": "text",
       "layout": {
-        "row": "Row_0gw1c0p",
+        "row": "Row_1nr8ymc",
         "columns": null
       },
-      "id": "Field_1ryq0y4"
+      "id": "Field_0jqfpi1",
+      "conditional": {
+        "hide": "=form_document=null"
+      }
     }
   ],
   "type": "default"

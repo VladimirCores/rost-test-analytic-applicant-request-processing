@@ -9,7 +9,7 @@
   "id": "Form_Executor_Confirmation",
   "components": [
     {
-      "text": "# Испольнитель - согласие на работу",
+      "text": "# Исполнитель - согласие на работу",
       "type": "text",
       "layout": {
         "row": "Row_1mw0hft",

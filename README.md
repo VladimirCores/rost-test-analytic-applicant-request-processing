@@ -61,7 +61,7 @@
 
 ## Описание решения
 
-Ссылка на решение в Camunda Modeler: [ссылка](https://hub.camunda.io/share/a8bcd903-b16e-48fa-86e7-d9d3f821929b)
+Ссылка на решение в Camunda SaaS: [ссылка](https://hub.camunda.io/share/a8bcd903-b16e-48fa-86e7-d9d3f821929b)
 
 Процесс реализован как BPMN-коллаборация из трёх пулов:
 

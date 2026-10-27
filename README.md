@@ -17,6 +17,7 @@
 - [Roadmap / возможные улучшения](#roadmap--возможные-улучшения)
 - [Как запустить](#как-запустить)
 - [Ограничения и допущения](#ограничения-и-допущения)
+- [Приложение A. Легенда и глоссарий](#приложение-a-легенда-и-глоссарий)
 
 ---
 
@@ -394,5 +395,49 @@ POST /v2/messages/publication
 7. **План тестирования — черновик.** Файл `docs/План_тестирования_Обработка_электронного_заявления.docx` содержит предварительный набросок тестовых сценариев и подходов к проверке. Он **не является финальным планом тестирования** и требует доработки: детализации шагов, фиксации тестовых данных, согласования с заказчиком и определения критериев приёмки. Матрица в разделе [Матрица тестовых сценариев](#матрица-тестовых-сценариев) — её краткая выжимка для быстрой проверки модели.
 
 ---
+
+## Приложение A. Легенда и глоссарий
+
+### BPMN / Camunda 8 элементы, использованные в модели
+
+| Элемент | Где используется | Назначение | Документация |
+|---|---|---|---|
+| **Message Start Event** | `StartEvent_ApplicationReceived` | Запуск процесса по сообщению `messageApplicationSubmitted` | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/message-events/) |
+| **User Task** | Назначение, обработка, подписание | Задача, выполняемая человеком через Tasklist | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/user-tasks/) |
+| **Send Task** | Запрос документов, отправка заявителю | Задача с `zeebe:taskDefinition` — требует job worker'а | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/send-tasks/) |
+| **Embedded Sub-Process** | `SubProcess_ExecutorWork` | Инкапсуляция логики обработки, переиспользуется при доработке | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/embedded-subprocesses/) |
+| **Exclusive Gateway (XOR)** | 4 шлюза | Ветвление по условиям с default-потоком | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/exclusive-gateways/) |
+| **Event-Based Gateway** | `Gateway_Executor_WaitResponse` | Ожидание первого из событий (сообщение / таймер) | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/event-based-gateways/) |
+| **Intermediate Catch Event (Message)** | `CatchEvent_Executor_Message` | Ожидание ответа заявителя по `correlationKey = appId` | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/message-events/) |
+| **Intermediate Catch Event (Timer)** | `CatchEvent_Executor_Timer` | Таймаут 3 дня (`P3D`) на ожидание документов | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/timer-events/) |
+| **Pool / Participant** | `Participant_Organization`, `Participant_Applicant`, `Participant_0aegb3e` | Разделение ролей и справочных моделей | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/collaboration/) |
+| **Message Flow** | `Flow_1wzykpc` | Передача сообщения между пулами (визуальная нотация) | [docs](https://docs.camunda.io/docs/components/modeler/bpmn/message-flows/) |
+
+### Camunda 8 концепции в модели
+
+| Концепция | Где используется | Кратко |
+|---|---|---|
+| **FEEL** | Все условия шлюзов, `ioMapping`, `assert()` | Язык выражений Camunda 8 (префикс `=`); [docs](https://docs.camunda.io/docs/components/modeler/feel/) |
+| **Input/Output Mapping** | Задачи, подпроцессы, стартовые события | Явная передача переменных между скоупами; [docs](https://docs.camunda.io/docs/components/concepts/variables/#inputoutput-variable-mappings) |
+| **`assert()`** | Стартовое событие (`managerId`, `applicantEmail`) | Fail-fast валидация — инцидент вместо `null`; [docs](https://docs.camunda.io/docs/components/modeler/feel/builtin-functions/feel-built-in-functions-conversion/#assert) |
+| **`zeebe:assignmentDefinition`** | Все user tasks | Назначение исполнителя через FEEL-выражение; [docs](https://docs.camunda.io/docs/components/modeler/bpmn/user-tasks/#assignments) |
+| **`zeebe:formDefinition`** | Все user tasks | Привязка Camunda Form к задаче; [docs](https://docs.camunda.io/docs/components/modeler/forms/camunda-forms-reference/) |
+| **`zeebe:taskDefinition`** | Send tasks | Тип job'а для внешнего worker'а + `retries`; [docs](https://docs.camunda.io/docs/components/modeler/bpmn/service-tasks/) |
+| **`correlationKey`** | `Message_ApplicantResponse` | Ключ корреляции сообщений (`=appId`); [docs](https://docs.camunda.io/docs/components/concepts/messages/#correlation) |
+| **DMN** | `Test - DMN - Application Decisions.dmn` | Таблицы решений (hit policy `FIRST`); [docs](https://docs.camunda.io/docs/components/modeler/dmn/) |
+
+### Бизнес-глоссарий процесса
+
+| Термин | Определение |
+|---|---|
+| **Заявление** | Электронный документ, поданный заявителем в организацию через личный приём или портал |
+| **Заявитель** | Физическое или юридическое лицо, подающее заявление |
+| **Руководитель** | Сотрудник, назначающий исполнителя и подписывающий итоговый документ |
+| **Исполнитель** | Назначенный сотрудник, обрабатывающий заявление |
+| **Доработка (rework)** | Возврат документа руководителем исполнителю для исправления |
+| **Недостающие документы** | Документы, которые заявитель должен предоставить дополнительно (ожидание 3 дня) |
+| **Отказ в рассмотрении** | Решение не рассматривать заявление (документ не готовится) |
+| **Согласование** | Подписание документа руководителем после успешной обработки |
+| **State-machine (`applicationStatus`)** | Переменная, отражающая текущий этап процесса (см. [Переменные процесса](#переменные-процесса)) |
 
 **Автор:** Владимир Корес (Vladimir Cores) — Тестовое задание на позицию Senior Business Analyst

@@ -293,7 +293,7 @@
 
 ## Как запустить
 
-### 1. Деплой
+### 1. Деплой через Desktop Modeler
 
 1. Открыть [Camunda Modeler](https://camunda.com/download/modeler/) (версия 5.x).
 2. `File → Open File` → выбрать **`Test - Applicant Request Processing.bpmn`**.
@@ -301,9 +301,47 @@
 4. Повторить для `Test - DMN - Application Decisions.dmn` (опционально — DMN не подключён к BPMN, но нужен как артефакт).
 5. Формы синхронизируются автоматически при работе с Web Modeler.
 
-### 2. Запуск процесса
+### 1.1. Запуск через Web Modeler (Camunda SaaS)
 
-Процесс запускается **по сообщению** `messageApplicationSubmitted`. Пример через REST API Camunda 8 SaaS (V2):
+Web Modeler — облачная версия Modeler, доступная в [Camunda SaaS Console](https://camunda.com/). Развернуть BPMN из репозитория GitHub можно тремя способами.
+
+#### Способ A — Импорт по URL из GitHub (рекомендуемый)
+
+Camunda Web Modeler поддерживает импорт ресурсов по публичному URL. Для GitHub-хостинга используется «raw»-ссылка на файл.
+
+1. Откройте файл `Test - Applicant Request Processing.bpmn` в репозитории GitHub.
+2. Нажмите кнопку **Raw** (справа над файлом) — откроется «сырой» URL вида:
+   `https://raw.githubusercontent.com/VladimirCores/rost-test-analytic-applicant-request-processing/main/Test%20-%20Applicant%20Request%20Processing.bpmn`
+3. В Web Modeler перейдите на **главную страницу** → **Import** → **From URL**.
+4. Вставьте raw-URL и подтвердите импорт. Web Modeler распознает BPMN и создаст процесс-приложение[reference:0].
+5. Повторите для DMN-файла и форм, если они нужны в проекте (каждый файл импортируется отдельно).
+
+> **Важно:** URL должен быть **публично доступным** (без аутентификации, VPN или редиректов). Для приватных репозиториев используйте Git Sync (Способ C).
+
+#### Способ B — Загрузка файлов (самый простой)
+
+Если не хотите возиться с URL:
+
+1. Скачайте BPMN-файл из репозитория (кнопка **Download raw file**).
+2. В Web Modeler откройте проект (или создайте новый) → **New → Upload files** → выберите скачанный BPMN[reference:1].
+3. Повторите для DMN и форм.
+
+#### Способ C — Git Sync (автоматическая синхронизация)
+
+Camunda Web Modeler поддерживает **Git Sync** — привязку процесса-приложения к GitHub-репозиторию. Это удобно, если планируете часто менять модель и держать её в Git как source of truth[reference:2].
+
+1. В Web Modeler откройте или создайте **process application**.
+2. Нажмите кнопку **Git** в правом верхнем углу → **Configure Git integration**.
+3. Установите **Camunda Git Sync** GitHub App для вашего репозитория (потребуются права администратора).
+4. Укажите базовый URL репозитория (без `.git` и без пути к папке):
+   `https://github.com/VladimirCores/rost-test-analytic-applicant-request-processing`
+5. Выберите ветку (`main`) и нажмите **Sync** — Web Modeler подтянет BPMN, DMN и формы из репозитория[reference:3].
+
+> **Примечание:** Git Sync требует, чтобы организация Camunda поддерживала эту функцию (доступна в SaaS-планах). Если кнопка Git недоступна — используйте Способ A или B.
+
+### 2. Запуск процесса (после деплоя)
+
+После деплоя BPMN (любым из способов) процесс готов к запуску. Публикация стартового сообщения `messageApplicationSubmitted`:
 
 ```http
 POST https://<cluster-id>.<region>.zeebe.camunda.io/v2/messages/publication
@@ -319,12 +357,12 @@ Content-Type: application/json
 }
 ```
 
-**Важно:** `managerId` и `applicantEmail` обязательны (валидируются через `assert()`).
+**Важно:** `managerId` и `applicantEmail` обязательны (валидируются через `assert()` на стартовом событии).
 
 ### 3. Тестирование
 
 - Сценарии из [матрицы](#матрица-тестовых-сценариев) проверяются через **Tasklist** (задачи) и **Operate** (инциденты, переменные).
-- Для проверки ответа заявителя (TC-10):
+- Для проверки ответа заявителя (TC-10) — публикация `messageApplicantMissingDocument` с `correlationKey = appId`:
 
 ```http
 POST /v2/messages/publication
